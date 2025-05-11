@@ -1,0 +1,41 @@
+name: Deploy custom webApp on yunohost
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  deploy-ynh:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install lftp
+      run: sudo apt-get update && sudo apt-get install -y lftp
+
+    - name: Add SSH Host Key
+      env:
+        SFTP_HOST: ${{ secrets.SFTP_HOST }}
+        SFTP_PORT: ${{ secrets.SFTP_PORT }}
+      run: |
+        mkdir -p ~/.ssh
+        ssh-keyscan -p $SFTP_PORT $SFTP_HOST >> ~/.ssh/known_hosts
+        chmod 600 ~/.ssh/known_hosts
+
+    - name: Push files via SFTP
+      env:
+        SFTP_HOST: ${{ secrets.SFTP_HOST }}
+        SFTP_PORT: ${{ secrets.SFTP_PORT }}
+        SFTP_USER: ${{ secrets.SFTP_USER }}
+        SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
+      run: |
+        lftp -u "$SFTP_USER","$SFTP_PASSWORD" -p $SFTP_PORT sftp://$SFTP_HOST <<EOF
+        mirror -R ./ /www/
+        bye
+        EOF
