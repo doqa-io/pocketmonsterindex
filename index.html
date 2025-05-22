@@ -193,6 +193,74 @@
       loading.classList.toggle('active', show);
     }
 
+    // Add search functionality
+    const searchInput = document.getElementById('search');
+    const suggestionBox = document.getElementById('suggestion-box');
+    const clearBtn = document.getElementById('clear-btn');
+
+    searchInput.addEventListener('input', async (e) => {
+      const query = e.target.value.trim().toLowerCase();
+      if (query.length === 0) {
+        suggestionBox.innerHTML = '';
+        suggestionBox.style.display = 'none';
+        clearBtn.classList.remove('active');
+        return;
+      }
+
+      clearBtn.classList.add('active');
+      const response = await fetch(`${API_URL}?limit=1000`); // Fetch all Pokémon for search
+      const data = await response.json();
+      const filtered = data.results.filter(p => p.name.includes(query));
+
+      suggestionBox.innerHTML = filtered.map(p => `<div class="suggestion-item" data-name="${p.name}">${p.name}</div>`).join('');
+      suggestionBox.style.display = 'block';
+
+      document.querySelectorAll('.suggestion-item').forEach(item => {
+        item.addEventListener('click', () => {
+          searchInput.value = item.dataset.name;
+          suggestionBox.innerHTML = '';
+          suggestionBox.style.display = 'none';
+          fetchPokemonDetails(item.dataset.name);
+        });
+      });
+    });
+
+    clearBtn.addEventListener('click', () => {
+      searchInput.value = '';
+      suggestionBox.innerHTML = '';
+      suggestionBox.style.display = 'none';
+      clearBtn.classList.remove('active');
+    });
+
+    async function fetchPokemonDetails(name) {
+      try {
+        const response = await fetch(`${API_URL}/${name}`);
+        const data = await response.json();
+        renderList([{
+          id: data.id,
+          name: data.name,
+          image: data.sprites.front_default,
+        }]);
+      } catch (error) {
+        console.error('Error fetching Pokémon details:', error);
+      }
+    }
+
+    // Add "Load More" button
+    const loadMoreBtn = document.createElement('button');
+    loadMoreBtn.textContent = 'Load More';
+    loadMoreBtn.style.display = 'block';
+    loadMoreBtn.style.margin = '2rem auto';
+    loadMoreBtn.style.padding = '0.75rem 1.5rem';
+    loadMoreBtn.style.border = 'none';
+    loadMoreBtn.style.borderRadius = '0.5rem';
+    loadMoreBtn.style.background = 'var(--accent)';
+    loadMoreBtn.style.color = 'white';
+    loadMoreBtn.style.cursor = 'pointer';
+    document.body.appendChild(loadMoreBtn);
+
+    loadMoreBtn.addEventListener('click', loadMorePokemon);
+
     // Infinite scroll
     window.addEventListener('scroll', () => {
       if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 100) {
