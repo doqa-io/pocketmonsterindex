@@ -143,17 +143,21 @@
   <script>
     const API_URL = 'https://pokeapi.co/api/v2/pokemon';
     let nextUrl = `${API_URL}?limit=20`;
+    let isLoading = false; // Track loading state
 
     async function fetchPokemon(url) {
       try {
         const response = await fetch(url);
         const data = await response.json();
         nextUrl = data.next;
-        return data.results.map((p, index) => ({
-          id: p.url.split('/').filter(Boolean).pop(),
-          name: p.name,
-          image: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.url.split('/').filter(Boolean).pop()}.png`
-        }));
+        return data.results.map((p) => {
+          const id = p.url.split('/').filter(Boolean).pop();
+          return {
+            id,
+            name: p.name,
+            image: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`,
+          };
+        });
       } catch (error) {
         console.error('Error fetching Pokémon:', error);
         return [];
@@ -161,15 +165,18 @@
     }
 
     async function loadMorePokemon() {
-      if (!nextUrl) return;
+      if (!nextUrl || isLoading) return; // Prevent multiple calls
+      isLoading = true;
       toggleLoading(true);
       const newPokemon = await fetchPokemon(nextUrl);
       renderList(newPokemon, true);
       toggleLoading(false);
+      isLoading = false;
     }
 
     function renderList(list, append = false) {
-      if (!append) grid.innerHTML = '';
+      const grid = document.getElementById('pokemon-grid'); // Ensure grid is selected
+      if (!append) grid.innerHTML = ''; // Clear grid if not appending
       list.forEach(p => {
         const card = document.createElement('div');
         card.className = 'card';
