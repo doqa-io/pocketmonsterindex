@@ -51,6 +51,21 @@
        transform:translateY(-50%);
        pointer-events:none;
      }
+     .search-box .clear-btn {
+       position: absolute;
+       right: 2.5rem;
+       top: 50%;
+       transform: translateY(-50%);
+       background: none;
+       border: none;
+       font-size: 1rem;
+       color: #9ca3af;
+       cursor: pointer;
+       display: none;
+     }
+     .search-box .clear-btn.active {
+       display: block;
+     }
      .grid{
        display:grid;
        grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
@@ -65,6 +80,7 @@
        box-shadow:0 4px 10px var(--shadow);
        text-align:center;
        transition:transform .2s;
+       position: relative;
      }
      .card:hover{
        transform:translateY(-4px);
@@ -78,6 +94,21 @@
        margin:0.5rem 0 0;
        text-transform:capitalize;
      }
+     .card .id {
+       position: absolute;
+       top: 0.5rem;
+       right: 0.5rem;
+       font-size: 0.75rem;
+       color: #9ca3af;
+     }
+     .loading {
+       display: none;
+       text-align: center;
+       margin: 2rem 0;
+     }
+     .loading.active {
+       display: block;
+     }
   </style>
 </head>
 <body>
@@ -86,8 +117,10 @@
      <input type="text" id="search" placeholder="Search Pokémon…">
      <!-- Simple magnifying glass SVG -->
      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+     <button class="clear-btn" id="clear-btn">✕</button>
   </div>
 
+  <div class="loading" id="loading">Loading...</div>
   <div id="pokemon-grid" class="grid"></div>
 
   <script>
@@ -102,13 +135,16 @@
 
     const grid = document.getElementById('pokemon-grid');
     const searchInput = document.getElementById('search');
+    const clearBtn = document.getElementById('clear-btn');
+    const loading = document.getElementById('loading');
 
-    function renderList(list){
+    function renderList(list) {
       grid.innerHTML = '';
       list.forEach(p => {
         const card = document.createElement('div');
         card.className = 'card';
         card.innerHTML = `
+          <span class="id">#${p.id}</span>
           <img src="${p.image}" alt="${p.name}">
           <h2>${p.name}</h2>
         `;
@@ -116,14 +152,30 @@
       });
     }
 
+    function toggleLoading(show) {
+      loading.classList.toggle('active', show);
+    }
+
     // initial render
-    renderList(DUMMY_POKEMON);
+    toggleLoading(true);
+    setTimeout(() => {
+      renderList(DUMMY_POKEMON);
+      toggleLoading(false);
+    }, 1000);
 
     // filter on input
     searchInput.addEventListener('input', e => {
       const term = e.target.value.toLowerCase().trim();
       const filtered = DUMMY_POKEMON.filter(p => p.name.includes(term));
       renderList(filtered);
+      clearBtn.classList.toggle('active', term.length > 0);
+    });
+
+    // clear search
+    clearBtn.addEventListener('click', () => {
+      searchInput.value = '';
+      renderList(DUMMY_POKEMON);
+      clearBtn.classList.remove('active');
     });
   </script>
 </body>
