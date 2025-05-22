@@ -66,6 +66,24 @@
      .search-box .clear-btn.active {
        display: block;
      }
+     .suggestion-box {
+       position: absolute;
+       background: white;
+       border: 1px solid #d1d5db;
+       border-radius: 0.5rem;
+       max-height: 150px;
+       overflow-y: auto;
+       z-index: 10;
+       width: 100%;
+       box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+     }
+     .suggestion-item {
+       padding: 0.5rem;
+       cursor: pointer;
+     }
+     .suggestion-item:hover {
+       background: #f3f4f6;
+     }
      .grid{
        display:grid;
        grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
@@ -115,8 +133,7 @@
   <h1>Pokédex</h1>
   <div class="search-box">
      <input type="text" id="search" placeholder="Search Pokémon…">
-     <!-- Simple magnifying glass SVG -->
-     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+     <div id="suggestion-box" class="suggestion-box"></div>
      <button class="clear-btn" id="clear-btn">✕</button>
   </div>
 
@@ -124,22 +141,35 @@
   <div id="pokemon-grid" class="grid"></div>
 
   <script>
-    const DUMMY_POKEMON = [
-      { id: 1, name: 'bulbasaur', image: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/1.png' },
-      { id: 4, name: 'charmander', image: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/4.png' },
-      { id: 7, name: 'squirtle', image: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/7.png' },
-      { id: 25, name: 'pikachu', image: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png' },
-      { id: 39, name: 'jigglypuff', image: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/39.png' },
-      { id: 133, name: 'eevee', image: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/133.png' },
-    ];
+    const API_URL = 'https://pokeapi.co/api/v2/pokemon';
+    let nextUrl = `${API_URL}?limit=20`;
 
-    const grid = document.getElementById('pokemon-grid');
-    const searchInput = document.getElementById('search');
-    const clearBtn = document.getElementById('clear-btn');
-    const loading = document.getElementById('loading');
+    async function fetchPokemon(url) {
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
+        nextUrl = data.next;
+        return data.results.map((p, index) => ({
+          id: p.url.split('/').filter(Boolean).pop(),
+          name: p.name,
+          image: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.url.split('/').filter(Boolean).pop()}.png`
+        }));
+      } catch (error) {
+        console.error('Error fetching Pokémon:', error);
+        return [];
+      }
+    }
 
-    function renderList(list) {
-      grid.innerHTML = '';
+    async function loadMorePokemon() {
+      if (!nextUrl) return;
+      toggleLoading(true);
+      const newPokemon = await fetchPokemon(nextUrl);
+      renderList(newPokemon, true);
+      toggleLoading(false);
+    }
+
+    function renderList(list, append = false) {
+      if (!append) grid.innerHTML = '';
       list.forEach(p => {
         const card = document.createElement('div');
         card.className = 'card';
@@ -156,27 +186,16 @@
       loading.classList.toggle('active', show);
     }
 
-    // initial render
+    // Infinite scroll
+    window.addEventListener('scroll', () => {
+      if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 100) {
+        loadMorePokemon();
+      }
+    });
+
+    // Initial load
     toggleLoading(true);
-    setTimeout(() => {
-      renderList(DUMMY_POKEMON);
-      toggleLoading(false);
-    }, 1000);
-
-    // filter on input
-    searchInput.addEventListener('input', e => {
-      const term = e.target.value.toLowerCase().trim();
-      const filtered = DUMMY_POKEMON.filter(p => p.name.includes(term));
-      renderList(filtered);
-      clearBtn.classList.toggle('active', term.length > 0);
-    });
-
-    // clear search
-    clearBtn.addEventListener('click', () => {
-      searchInput.value = '';
-      renderList(DUMMY_POKEMON);
-      clearBtn.classList.remove('active');
-    });
+    loadMorePokemon();
   </script>
 </body>
 </html>
