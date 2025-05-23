@@ -47,6 +47,7 @@ h1 {
 }
 
 .suggestion-box {
+  display: none; /* Initially hidden */
   position: absolute;
   background: white;
   border: 1px solid #ccc;
@@ -55,8 +56,13 @@ h1 {
   overflow-y: auto;
   width: 300px;
   z-index: 1000;
-  right: 0;
-  left: auto;
+  margin-top: 0.5rem; /* Adjusted for spacing below search box */
+  left: 50%; /* Center align with h1 */
+  transform: translateX(-50%); /* Center align with h1 */
+}
+
+.suggestion-box.visible {
+  display: block; /* Visible when active */
 }
 
 .suggestion-item {
