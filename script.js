@@ -1,6 +1,7 @@
 const API_URL = 'https://pokeapi.co/api/v2/pokemon';
 let nextUrl = `${API_URL}?limit=20`;
 let isLoading = false; // Track loading state
+let activeDetailCard = null;
 
 async function fetchPokemon(url) {
   try {
@@ -44,6 +45,7 @@ function renderList(list, append = false) {
     `;
     grid.appendChild(card);
   });
+  addCardClickListeners();
 }
 
 function toggleLoading(show) {
@@ -183,3 +185,60 @@ populateFilters();
 
 toggleLoading(true);
 loadMorePokemon();
+
+function showPokemonDetailsAtCursor(pokemon, x, y) {
+  if (activeDetailCard) {
+    activeDetailCard.remove();
+  }
+
+  const detailCard = document.createElement('div');
+  detailCard.className = 'detail-card';
+  detailCard.innerHTML = `
+    <h2>${pokemon.name} (#${pokemon.id})</h2>
+    <img src="${pokemon.image}" alt="${pokemon.name}">
+    <p>Height: ${pokemon.height}</p>
+    <p>Weight: ${pokemon.weight}</p>
+    <p>Base Experience: ${pokemon.base_experience}</p>
+  `;
+
+  detailCard.style.position = 'absolute';
+  detailCard.style.left = `${x}px`;
+  detailCard.style.top = `${y}px`;
+
+  document.body.appendChild(detailCard);
+  activeDetailCard = detailCard;
+
+  function removeCard() {
+    detailCard.remove();
+    activeDetailCard = null;
+    document.removeEventListener('click', removeCard);
+  }
+
+  setTimeout(() => {
+    document.addEventListener('click', removeCard, { once: true });
+  }, 0); // Ensure the event listener is added after the current click event
+}
+
+function addCardClickListeners() {
+  const cards = document.querySelectorAll('.card');
+  cards.forEach(card => {
+    card.addEventListener('click', async (event) => {
+      event.stopPropagation(); // Prevent click from propagating to document
+      const id = card.querySelector('.id').textContent.replace('#', '');
+      try {
+        const response = await fetch(`${API_URL}/${id}`);
+        const data = await response.json();
+        showPokemonDetailsAtCursor({
+          id: data.id,
+          name: data.name,
+          image: data.sprites.front_default,
+          height: data.height,
+          weight: data.weight,
+          base_experience: data.base_experience,
+        }, event.clientX, event.clientY);
+      } catch (error) {
+        console.error('Error fetching Pokémon details:', error);
+      }
+    });
+  });
+}
