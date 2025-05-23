@@ -13,10 +13,10 @@
   <h1>Pokédex</h1>
   <div class="search-box">
      <input type="text" id="search" placeholder="Search Pokémon…">
-     <div id="suggestion-box" class="suggestion-box"></div>
      <button class="clear-btn" id="clear-btn">✕</button>
      <button class="load-more-btn" id="load-more-btn">Load More</button>
   </div>
+  <div id="suggestion-box" class="suggestion-box"></div>
 
   <div class="loading" id="loading">Loading...</div>
   <div id="pokemon-grid" class="grid"></div>
@@ -83,7 +83,7 @@
       const query = e.target.value.trim().toLowerCase();
       if (query.length === 0) {
         suggestionBox.innerHTML = '';
-        suggestionBox.style.display = 'none';
+        suggestionBox.classList.remove('visible');
         clearBtn.classList.remove('active');
         return;
       }
@@ -94,13 +94,13 @@
       const filtered = data.results.filter(p => p.name.includes(query));
 
       suggestionBox.innerHTML = filtered.map(p => `<div class="suggestion-item" data-name="${p.name}">${p.name}</div>`).join('');
-      suggestionBox.style.display = 'block';
+      suggestionBox.classList.add('visible');
 
       document.querySelectorAll('.suggestion-item').forEach(item => {
         item.addEventListener('click', () => {
           searchInput.value = item.dataset.name;
           suggestionBox.innerHTML = '';
-          suggestionBox.style.display = 'none';
+          suggestionBox.classList.remove('visible');
           fetchPokemonDetails(item.dataset.name);
         });
       });
@@ -109,7 +109,7 @@
     clearBtn.addEventListener('click', () => {
       searchInput.value = '';
       suggestionBox.innerHTML = '';
-      suggestionBox.style.display = 'none';
+      suggestionBox.classList.remove('visible');
       clearBtn.classList.remove('active');
     });
 
