@@ -112,5 +112,74 @@ window.addEventListener('scroll', () => {
   }
 });
 
+async function populateFilters() {
+  try {
+    // Fetch Pokémon types
+    const typeResponse = await fetch('https://pokeapi.co/api/v2/type');
+    const typeData = await typeResponse.json();
+    const typeFilter = document.getElementById('type-filter');
+    typeData.results.forEach(type => {
+      const option = document.createElement('option');
+      option.value = type.name;
+      option.textContent = type.name;
+      typeFilter.appendChild(option);
+    });
+
+    // Fetch Pokémon generations
+    const generationResponse = await fetch('https://pokeapi.co/api/v2/generation');
+    const generationData = await generationResponse.json();
+    const generationFilter = document.getElementById('generation-filter');
+    generationData.results.forEach(gen => {
+      const option = document.createElement('option');
+      option.value = gen.name;
+      option.textContent = gen.name;
+      generationFilter.appendChild(option);
+    });
+
+    // Fetch Pokémon regions
+    const regionResponse = await fetch('https://pokeapi.co/api/v2/region');
+    const regionData = await regionResponse.json();
+    const regionFilter = document.getElementById('region-filter');
+    regionData.results.forEach(region => {
+      const option = document.createElement('option');
+      option.value = region.name;
+      option.textContent = region.name;
+      regionFilter.appendChild(option);
+    });
+  } catch (error) {
+    console.error('Error populating filters:', error);
+  }
+}
+
+function applyFilters() {
+  const typeFilter = document.getElementById('type-filter').value;
+  const generationFilter = document.getElementById('generation-filter').value;
+  const regionFilter = document.getElementById('region-filter').value;
+
+  // Fetch and filter Pokémon based on selected filters
+  fetchPokemon(nextUrl).then(pokemonList => {
+    const filteredList = pokemonList.filter(pokemon => {
+      // Apply type, generation, and region filters here
+      // Placeholder logic: Adjust based on actual API data structure
+      return (!typeFilter || pokemon.type === typeFilter) &&
+             (!generationFilter || pokemon.generation === generationFilter) &&
+             (!regionFilter || pokemon.region === regionFilter);
+    });
+    renderList(filteredList);
+  });
+}
+
+// Event listeners for filters
+const typeFilter = document.getElementById('type-filter');
+const generationFilter = document.getElementById('generation-filter');
+const regionFilter = document.getElementById('region-filter');
+
+typeFilter.addEventListener('change', applyFilters);
+generationFilter.addEventListener('change', applyFilters);
+regionFilter.addEventListener('change', applyFilters);
+
+// Populate filters on page load
+populateFilters();
+
 toggleLoading(true);
 loadMorePokemon();
