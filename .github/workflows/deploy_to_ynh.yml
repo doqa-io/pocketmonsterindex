@@ -1,6 +1,7 @@
 name: Deploy custom webApp on yunohost
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
