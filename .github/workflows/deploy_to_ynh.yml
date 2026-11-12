@@ -1,42 +1,79 @@
 name: Deploy custom webApp on yunohost
 
+# Déploiement uniquement depuis main (push) ou à la main.
+# Plus de déclenchement sur pull_request : une branche non relue ne part pas en production.
 on:
   workflow_dispatch:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
+
+permissions:
+  contents: read
+
+# Deux déploiements ne tournent jamais en même temps sur le même dépôt.
+concurrency:
+  group: deploy-ynh-${{ github.repository }}
+  cancel-in-progress: false
 
 jobs:
   deploy-ynh:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
+      with:
+        persist-credentials: false
 
     - name: Install lftp
       run: sudo apt-get update && sudo apt-get install -y lftp
 
+    # Empreinte du serveur : on utilise le secret SFTP_KNOWN_HOSTS s'il existe
+    # (empreinte épinglée). Sinon, repli temporaire sur ssh-keyscan, signalé en avertissement.
     - name: Add SSH Host Key
       env:
         SFTP_HOST: ${{ secrets.SFTP_HOST }}
         SFTP_PORT: ${{ secrets.SFTP_PORT }}
+        SFTP_KNOWN_HOSTS: ${{ secrets.SFTP_KNOWN_HOSTS }}
       run: |
         mkdir -p ~/.ssh
-        ssh-keyscan -p $SFTP_PORT $SFTP_HOST >> ~/.ssh/known_hosts
+        chmod 700 ~/.ssh
+        if [ -n "$SFTP_KNOWN_HOSTS" ]; then
+          printf '%s\n' "$SFTP_KNOWN_HOSTS" > ~/.ssh/known_hosts
+        else
+          echo "::warning::SFTP_KNOWN_HOSTS absent : empreinte du serveur récupérée par ssh-keyscan (non épinglée)."
+          ssh-keyscan -p "$SFTP_PORT" "$SFTP_HOST" > ~/.ssh/known_hosts
+        fi
         chmod 600 ~/.ssh/known_hosts
 
+    # Authentification : clé SSH si le secret SFTP_KEY existe, sinon mot de passe.
+    # Le mot de passe passe par la variable LFTP_PASSWORD, jamais sur la ligne de commande.
+    # Seuls les fichiers du site sont envoyés (voir EXCLUDES).
     - name: Push files via SFTP
       env:
         SFTP_HOST: ${{ secrets.SFTP_HOST }}
         SFTP_PORT: ${{ secrets.SFTP_PORT }}
         SFTP_USER: ${{ secrets.SFTP_USER }}
         SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
+        SFTP_KEY: ${{ secrets.SFTP_KEY }}
       run: |
-        lftp -u "$SFTP_USER","$SFTP_PASSWORD" -p $SFTP_PORT sftp://$SFTP_HOST <<EOF
-        mirror -R ./ /www/
-        bye
-        EOF
+        if [ -n "$SFTP_KEY" ]; then
+          printf '%s\n' "$SFTP_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          AUTH="set sftp:connect-program 'ssh -a -x -i $HOME/.ssh/deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes'; open -u $SFTP_USER, -p $SFTP_PORT sftp://$SFTP_HOST"
+        else
+          echo "::warning::SFTP_KEY absent : authentification par mot de passe."
+          export LFTP_PASSWORD="$SFTP_PASSWORD"
+          AUTH="set sftp:connect-program 'ssh -a -x -o StrictHostKeyChecking=yes'; open --env-password -u $SFTP_USER -p $SFTP_PORT sftp://$SFTP_HOST"
+        fi
+        # Fichiers de développement jamais envoyés (liste commune à tous les dépôts doqa-io).
+        EXCLUDES="-x '^\.git/' -x '^\.github/' -x '^\.gitignore$' -x '^\.idea/' -x '^\.ddev/' \
+          -x '^node_modules/' -x '^tests/' -x '^test-results/' -x '^playwright-report/' \
+          -x '^package(-lock)?\.json$' -x '^playwright\.config\.' -x '^README\.md$'"
+        lftp -c "set cmd:fail-exit yes; $AUTH; mirror -R --verbose $EXCLUDES ./ /www/"
+
+    - name: Remove deploy key
+      if: always()
+      run: rm -f ~/.ssh/deploy_key
